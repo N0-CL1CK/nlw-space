@@ -11,7 +11,9 @@ class Application {
   private listen(): void {
     this.app
       .listen({ port: 8080 })
-      .then(() => console.log(`🚀 HTTP server running on http://localhost:8080/`));
+      .then(() =>
+        console.log(`🚀 HTTP server running on http://localhost:8080/`),
+      );
   }
 
   public load(): void {

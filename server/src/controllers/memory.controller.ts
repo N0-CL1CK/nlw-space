@@ -4,7 +4,9 @@ import { object, z } from 'zod';
 
 class MemoryController {
   public async getAllMemories(): Promise<object> {
-    const memories = await Prisma.memory.findMany({ orderBy: { createdAt: 'asc' } });
+    const memories = await Prisma.memory.findMany({
+      orderBy: { createdAt: 'asc' },
+    });
 
     if (!(memories.length > 0)) return { 404: 'Não há memórias ainda' };
     else
@@ -71,7 +73,9 @@ class MemoryController {
 
     const deletedMemory = await Prisma.memory.delete({ where: { id } });
 
-    return deletedMemory ? { deletedMemory } : { 500: 'Ocorreu um erro interno' };
+    return deletedMemory
+      ? { deletedMemory }
+      : { 500: 'Ocorreu um erro interno' };
   }
 }
 
