@@ -1,26 +1,28 @@
+import 'dotenv/config';
+
 import fastify from 'fastify';
+import jwt from '@fastify/jwt';
 import cors from '@fastify/cors';
+
 import { memoryRoutes } from './routes/memory.routes';
+import { authRoutes } from './routes/auth.routes';
 
 class Application {
   private app = fastify();
 
-  private applySettings(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      try {
-        this.app.register(cors, { origin: true });
+  constructor() {
+    this.app.register(cors, { origin: true });
+    this.app.register(jwt, { secret: 'spacetime' });
+  }
 
-        resolve();
-      } catch (err) {
-        console.error(err);
-        reject(err);
-      }
-    });
+  public get jwt() {
+    return this.app.jwt;
   }
 
   private buildRoutes(): Promise<void> {
     return new Promise((resolve, reject) => {
       try {
+        this.app.register(authRoutes, { prefix: '/auth' });
         this.app.register(memoryRoutes, { prefix: '/memories' });
 
         resolve();
@@ -49,10 +51,13 @@ class Application {
   }
 
   public async load(): Promise<void> {
-    await this.applySettings();
     await this.buildRoutes();
     await this.listen();
   }
 }
-// add a comment
-new Application().load();
+
+const App = new Application();
+
+App.load();
+
+export { App };

@@ -1,10 +1,11 @@
-import { FastifyRequest } from 'fastify';
+import { FastifyReply, FastifyRequest } from 'fastify';
 import { Prisma } from '../lib/prisma';
 import { object, z } from 'zod';
 
 class MemoryController {
-  public async getAllMemories(): Promise<object> {
+  public async getAllMemories(request: FastifyRequest): Promise<object> {
     const memories = await Prisma.memory.findMany({
+      where: { userId: request.user.sub },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -19,36 +20,45 @@ class MemoryController {
       });
   }
 
-  public async getMemory(req: FastifyRequest): Promise<object> {
+  public async getMemory(
+    request: FastifyRequest,
+    response: FastifyReply,
+  ): Promise<object> {
     const paramsSchema = object({ id: z.string().uuid() });
-    const { id } = paramsSchema.parse(req.params);
+    const { id } = paramsSchema.parse(request.params);
     const memory = await Prisma.memory.findUniqueOrThrow({ where: { id } });
 
-    return memory ? { memory } : { 500: 'Ocorre um erro interno' };
+    if (!memory.isPublic && memory.userId !== request.user.sub)
+      return response.status(401).send();
+
+    return memory;
   }
 
-  public async createMemory(req: FastifyRequest): Promise<object> {
+  public async createMemory(request: FastifyRequest): Promise<object> {
     const bodySchema = object({
       content: z.string(),
       coverUrl: z.string(),
       isPublic: z.coerce.boolean().default(false),
     });
 
-    const { content, coverUrl, isPublic } = bodySchema.parse(req.body);
+    const { content, coverUrl, isPublic } = bodySchema.parse(request.body);
 
     const memory = await Prisma.memory.create({
       data: {
         content,
         coverUrl,
         isPublic,
-        userId: '2dab77cf-f551-44fd-8120-1a91aee62646',
+        userId: request.user.sub,
       },
     });
 
-    return memory ? { memory } : { 500: 'Ocorre um erro interno' };
+    return memory;
   }
 
-  public async updateMemory(req: FastifyRequest): Promise<object> {
+  public async updateMemory(
+    request: FastifyRequest,
+    response: FastifyReply,
+  ): Promise<object> {
     const paramsSchema = object({ id: z.string().uuid() });
     const bodySchema = object({
       content: z.string(),
@@ -56,26 +66,37 @@ class MemoryController {
       isPublic: z.coerce.boolean().default(false),
     });
 
-    const { id } = paramsSchema.parse(req.params);
-    const { content, coverUrl, isPublic } = bodySchema.parse(req.body);
+    const { id } = paramsSchema.parse(request.params);
+    const { content, coverUrl, isPublic } = bodySchema.parse(request.body);
 
-    const memory = await Prisma.memory.update({
+    let memory = await Prisma.memory.findFirstOrThrow({ where: { id } });
+
+    if (memory.userId !== request.user.sub) return response.status(401).send();
+
+    memory = await Prisma.memory.update({
       where: { id },
       data: { content, coverUrl, isPublic },
     });
 
-    return memory ? { memory } : { 500: 'Ocorreu um erro interno' };
+    return memory;
   }
 
-  public async deleteMemory(req: FastifyRequest): Promise<object> {
+  public async deleteMemory(
+    request: FastifyRequest,
+    response: FastifyReply,
+  ): Promise<object> {
     const paramsSchema = object({ id: z.string().uuid() });
-    const { id } = paramsSchema.parse(req.params);
+    const { id } = paramsSchema.parse(request.params);
+
+    const memory = await Prisma.memory.findUniqueOrThrow({
+      where: { id },
+    });
+
+    if (memory.userId !== request.user.sub) return response.status(401).send();
 
     const deletedMemory = await Prisma.memory.delete({ where: { id } });
 
-    return deletedMemory
-      ? { deletedMemory }
-      : { 500: 'Ocorreu um erro interno' };
+    return deletedMemory;
   }
 }
 
